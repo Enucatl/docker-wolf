@@ -59,35 +59,6 @@ if [[ ! -d /dev/dri ]]; then
 fi
 ok "Render nodes found: $(ls /dev/dri)"
 
-# ─── userns-remap ────────────────────────────────────────────────────────────
-section "User Namespace Remapping"
-REMAP_USER=""
-
-# Try reading from daemon.json
-DAEMON_JSON="/etc/docker/daemon.json"
-if [[ -f "$DAEMON_JSON" ]]; then
-  REMAP_USER=$(python3 -c \
-    "import json,sys; d=json.load(open('$DAEMON_JSON')); print(d.get('userns-remap',''))" \
-    2>/dev/null || true)
-fi
-
-if [[ -z "$REMAP_USER" ]]; then
-  warn "userns-remap is not configured in $DAEMON_JSON"
-  warn "Falling back to raw UID 1000 for directory ownership"
-  CONTAINER_UID=1000
-else
-  # "default" is Docker's alias for the auto-created dockremap user
-  [[ "$REMAP_USER" == "default" ]] && REMAP_USER="dockremap"
-  ok "userns-remap user: ${REMAP_USER}"
-
-  grep -q "^${REMAP_USER}:" /etc/subuid \
-    || fail "No entry for '${REMAP_USER}' in /etc/subuid — remap is misconfigured"
-
-  SUBUID_START=$(grep "^${REMAP_USER}:" /etc/subuid | cut -d: -f2)
-  CONTAINER_UID=$(( SUBUID_START + 1000 ))
-  ok "Container UID 1000 → host UID ${CONTAINER_UID}"
-fi
-
 # ─── uinput ──────────────────────────────────────────────────────────────────
 section "uinput"
 if ! lsmod | grep -q uinput; then
@@ -117,6 +88,10 @@ DIRS=(
   /opt/gow/users/player1/dota-cfg
   /opt/gow/users/player2/dota-cfg
   /opt/gow/shared/steamapps
+  # Wolf runtime dirs — bind-mounted as XDG_RUNTIME_DIR so Wolf can resolve
+  # the host path when passing socket mounts to child containers (PulseAudio, games)
+  /var/lib/wolf/player1
+  /var/lib/wolf/player2
 )
 for dir in "${DIRS[@]}"; do
   mkdir -p "$dir"
@@ -125,8 +100,12 @@ done
 
 # ─── ownership ───────────────────────────────────────────────────────────────
 section "Ownership"
-chown -R "${CONTAINER_UID}:${CONTAINER_UID}" /opt/gow
-ok "Set /opt/gow ownership to ${CONTAINER_UID}:${CONTAINER_UID}"
+# Game containers (Steam, PulseAudio) spawned by Wolf still run under the
+# daemon's userns-remap. On this host dockremap starts at 100000, so
+# container UID 1000 (retro) = host UID 101000. Adjust if your subuid differs.
+GAME_CONTAINER_UID=101000
+chown -R "${GAME_CONTAINER_UID}:${GAME_CONTAINER_UID}" /opt/gow
+ok "Set /opt/gow ownership to ${GAME_CONTAINER_UID}:${GAME_CONTAINER_UID}"
 
 # ─── done ────────────────────────────────────────────────────────────────────
 echo -e "\n${GREEN}All prerequisites satisfied. You can now run:${NC}"

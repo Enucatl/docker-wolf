@@ -30,8 +30,7 @@ services:
       - ./configs/player1:/etc/wolf/cfg
       - /var/run/docker.sock:/var/run/docker.sock
       - /run/udev:/run/udev:ro
-      - type: tmpfs
-        target: /tmp/wolf   # XDG_RUNTIME_DIR must exist before Wolf binds its API socket
+      - /var/lib/wolf/player1:/tmp/wolf  # bind mount so Wolf can resolve its host path for child containers
     devices:
       - /dev/uinput
       - /dev/dri
@@ -79,8 +78,7 @@ services:
       - ./configs/player2:/etc/wolf/cfg
       - /var/run/docker.sock:/var/run/docker.sock
       - /run/udev:/run/udev:ro
-      - type: tmpfs
-        target: /tmp/wolf
+      - /var/lib/wolf/player2:/tmp/wolf
     devices:
       - /dev/uinput
       - /dev/dri
