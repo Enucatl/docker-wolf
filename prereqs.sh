@@ -85,27 +85,14 @@ fi
 # ─── directories ─────────────────────────────────────────────────────────────
 section "Directories"
 DIRS=(
-  /opt/gow/users/player1/dota-cfg
-  /opt/gow/users/player2/dota-cfg
-  /opt/gow/shared/steamapps
-  # Wolf runtime dirs — bind-mounted as XDG_RUNTIME_DIR so Wolf can resolve
+  # Wolf runtime dir — bind-mounted as XDG_RUNTIME_DIR so Wolf can resolve
   # the host path when passing socket mounts to child containers (PulseAudio, games)
-  /var/lib/wolf/player1
-  /var/lib/wolf/player2
+  /var/lib/wolf
 )
 for dir in "${DIRS[@]}"; do
   mkdir -p "$dir"
   ok "Ensured $dir"
 done
-
-# ─── ownership ───────────────────────────────────────────────────────────────
-section "Ownership"
-# Game containers (Steam, PulseAudio) spawned by Wolf still run under the
-# daemon's userns-remap. On this host dockremap starts at 100000, so
-# container UID 1000 (retro) = host UID 101000. Adjust if your subuid differs.
-GAME_CONTAINER_UID=101000
-chown -R "${GAME_CONTAINER_UID}:${GAME_CONTAINER_UID}" /opt/gow
-ok "Set /opt/gow ownership to ${GAME_CONTAINER_UID}:${GAME_CONTAINER_UID}"
 
 # ─── done ────────────────────────────────────────────────────────────────────
 echo -e "\n${GREEN}All prerequisites satisfied. You can now run:${NC}"

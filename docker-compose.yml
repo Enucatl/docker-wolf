@@ -1,94 +1,55 @@
 services:
-
-  # ============================================================
-  # PLAYER 1 — standard Moonlight ports
-  # Moonlight: add server as  <host-ip>          (port 47984)
-  # ============================================================
-  wolf-player1:
-    image: ghcr.io/games-on-whales/wolf:stable
-    container_name: wolf-player1
+  cloudflare-ddns:
+    image: favonia/cloudflare-ddns:latest
     restart: unless-stopped
-    # Wolf needs to spawn Docker containers (PulseAudio, games) via the host
-    # socket, which requires actual host root. userns_mode: host opts this
-    # container out of the daemon-wide userns-remap for that reason.
-    userns_mode: "host"
+    read_only: true
+    cap_drop:
+      - all
+    security_opt:
+      - no-new-privileges:true
     environment:
-      - XDG_RUNTIME_DIR=/tmp/wolf
-      - WOLF_HTTPS_PORT=47984
-      - WOLF_HTTP_PORT=47989
-      - TZ=Etc/UTC
+      - CLOUDFLARE_API_TOKEN
+      - DOMAINS=wolf.enucatl.com
+      - PROXIED=false
+    networks:
+      - cloudflare
+
+  wolf:
+    image: ghcr.io/games-on-whales/wolf:stable
+    container_name: wolf
+    restart: unless-stopped
+    environment:
+      - NVIDIA_DRIVER_CAPABILITIES=all
+      - NVIDIA_VISIBLE_DEVICES=all
+      - XDG_RUNTIME_DIR=/tmp/sockets
+    volumes:
+      - /opt/wolf:/etc/wolf
+      - /var/run/docker.sock:/var/run/docker.sock:rw
+      - /dev/:/dev/:rw
+      - /run/udev:/run/udev:rw
+      - /var/lib/wolf:/tmp/sockets  # XDG_RUNTIME_DIR bind-mount so Wolf can resolve host socket path for child containers
+    devices:
+      - /dev/dri
+      - /dev/uinput
+    device_cgroup_rules:
+      - 'c 13:* rmw'
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
     ports:
-      # 1:1 mapping — internal port == external port so Wolf's self-reported
-      # addresses match what Moonlight actually reaches on the host.
-      - "47984:47984/tcp"   # HTTPS pairing
-      - "47989:47989/tcp"   # HTTP pairing
+      - "47984:47984/tcp"   # HTTPS
+      - "47989:47989/tcp"   # HTTP
+      - "47999:47999/udp"   # Control
       - "48010:48010/tcp"   # RTSP
-      - "47999:47999/udp"   # control
-      - "48100:48100/udp"   # video
-      - "48200:48200/udp"   # audio
-    volumes:
-      - ./configs/player1:/etc/wolf/cfg
-      - /var/run/docker.sock:/var/run/docker.sock
-      - /run/udev:/run/udev:ro
-      - /var/lib/wolf/player1:/tmp/wolf  # bind mount so Wolf can resolve its host path for child containers
-    devices:
-      - /dev/uinput
-      - /dev/dri
-    device_cgroup_rules:
-      - 'c 13:* rmw'   # uinput / input devices
-      - 'c 226:* rmw'  # DRI render nodes (/dev/dri/*)
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: all
-              capabilities: [gpu, compute, video, utility]
+      - "48100:48100/udp"   # Video
+      - "48200:48200/udp"   # Audio
+    networks:
+      - cloudflare
 
-  # ============================================================
-  # PLAYER 2 — all ports shifted +1000
-  # Moonlight: add server as  <host-ip>:48984    (port 48984)
-  #
-  # WOLF_HTTPS/HTTP_PORT tells Wolf to bind and advertise the
-  # shifted ports, so Moonlight learns the right host ports via
-  # RTSP session negotiation.
-  #
-  # If streaming still breaks, your Wolf build may also expose
-  # WOLF_RTSP_SETUP_PORT / WOLF_VIDEO_PING_PORT / WOLF_AUDIO_PING_PORT /
-  # WOLF_CONTROL_PORT — add them mirroring the same +1000 shift.
-  # ============================================================
-  wolf-player2:
-    image: ghcr.io/games-on-whales/wolf:stable
-    container_name: wolf-player2
-    restart: unless-stopped
-    userns_mode: "host"
-    environment:
-      - XDG_RUNTIME_DIR=/tmp/wolf
-      - WOLF_HTTPS_PORT=48984
-      - WOLF_HTTP_PORT=48989
-      - TZ=Etc/UTC
-    ports:
-      - "48984:48984/tcp"   # HTTPS pairing  (+1000)
-      - "48989:48989/tcp"   # HTTP pairing   (+1000)
-      - "49010:49010/tcp"   # RTSP           (+1000)
-      - "48999:48999/udp"   # control        (+1000)
-      - "49100:49100/udp"   # video          (+1000)
-      - "49200:49200/udp"   # audio          (+1000)
-    volumes:
-      - ./configs/player2:/etc/wolf/cfg
-      - /var/run/docker.sock:/var/run/docker.sock
-      - /run/udev:/run/udev:ro
-      - /var/lib/wolf/player2:/tmp/wolf
-    devices:
-      - /dev/uinput
-      - /dev/dri
-    device_cgroup_rules:
-      - 'c 13:* rmw'   # uinput / input devices
-      - 'c 226:* rmw'  # DRI render nodes (/dev/dri/*)
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: all
-              capabilities: [gpu, compute, video, utility]
+networks:
+  cloudflare:
+    enable_ipv6: true
