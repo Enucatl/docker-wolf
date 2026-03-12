@@ -23,14 +23,15 @@ services:
       - "48100:48100/udp"   # video
       - "48200:48200/udp"   # audio
     volumes:
-      - ./configs/player1:/etc/wolf/cfg:ro
+      - ./configs/player1:/etc/wolf/cfg
       - /var/run/docker.sock:/var/run/docker.sock
       - /run/udev:/run/udev:ro
     devices:
       - /dev/uinput
       - /dev/dri
     device_cgroup_rules:
-      - 'c 13:* rmw'
+      - 'c 13:* rmw'   # uinput / input devices
+      - 'c 226:* rmw'  # DRI render nodes (/dev/dri/*)
     deploy:
       resources:
         reservations:
@@ -48,33 +49,7 @@ services:
   # RTSP session negotiation.
   #
   # If streaming still breaks, your Wolf build may also expose
-  # WOLF_RTSP_PORT / WOLF_VIDEO_PORT / WOLF_AUDIO_PORT /
-  # WOLF_CONTROL_PORT — add them mirroring the same +1000 shift.
-  # ============================================================
-  # ============================================================
-  # DOTA 2 UPDATER — never starts automatically
-  # Run with:  docker compose run --rm dota2-update
-  # Do this with both players out of the game.
-  # ============================================================
-  dota2-update:
-    image: ghcr.io/games-on-whales/steam:edge
-    container_name: dota2-update
-    profiles: [update]
-    restart: "no"
-    command: steam +app_update 570 validate +quit
-    volumes:
-      - /opt/gow/shared/steamapps:/home/retro/.steam/steam/steamapps
-
-  # ============================================================
-  # PLAYER 2 — all ports shifted +1000
-  # Moonlight: add server as  <host-ip>:48984    (port 48984)
-  #
-  # WOLF_HTTPS/HTTP_PORT tells Wolf to bind and advertise the
-  # shifted ports, so Moonlight learns the right host ports via
-  # RTSP session negotiation.
-  #
-  # If streaming still breaks, your Wolf build may also expose
-  # WOLF_RTSP_PORT / WOLF_VIDEO_PORT / WOLF_AUDIO_PORT /
+  # WOLF_RTSP_SETUP_PORT / WOLF_VIDEO_PING_PORT / WOLF_AUDIO_PING_PORT /
   # WOLF_CONTROL_PORT — add them mirroring the same +1000 shift.
   # ============================================================
   wolf-player2:
@@ -94,14 +69,15 @@ services:
       - "49100:49100/udp"   # video          (+1000)
       - "49200:49200/udp"   # audio          (+1000)
     volumes:
-      - ./configs/player2:/etc/wolf/cfg:ro
+      - ./configs/player2:/etc/wolf/cfg
       - /var/run/docker.sock:/var/run/docker.sock
       - /run/udev:/run/udev:ro
     devices:
       - /dev/uinput
       - /dev/dri
     device_cgroup_rules:
-      - 'c 13:* rmw'
+      - 'c 13:* rmw'   # uinput / input devices
+      - 'c 226:* rmw'  # DRI render nodes (/dev/dri/*)
     deploy:
       resources:
         reservations:
