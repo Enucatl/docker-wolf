@@ -1,0 +1,111 @@
+services:
+
+  # ============================================================
+  # PLAYER 1 — standard Moonlight ports
+  # Moonlight: add server as  <host-ip>          (port 47984)
+  # ============================================================
+  wolf-player1:
+    image: ghcr.io/games-on-whales/wolf:stable
+    container_name: wolf-player1
+    restart: unless-stopped
+    environment:
+      - XDG_RUNTIME_DIR=/tmp/wolf
+      - WOLF_HTTPS_PORT=47984
+      - WOLF_HTTP_PORT=47989
+      - TZ=Etc/UTC
+    ports:
+      # 1:1 mapping — internal port == external port so Wolf's self-reported
+      # addresses match what Moonlight actually reaches on the host.
+      - "47984:47984/tcp"   # HTTPS pairing
+      - "47989:47989/tcp"   # HTTP pairing
+      - "48010:48010/tcp"   # RTSP
+      - "47999:47999/udp"   # control
+      - "48100:48100/udp"   # video
+      - "48200:48200/udp"   # audio
+    volumes:
+      - ./configs/player1:/etc/wolf/cfg:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /run/udev:/run/udev:ro
+    devices:
+      - /dev/uinput
+      - /dev/dri
+    device_cgroup_rules:
+      - 'c 13:* rmw'
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu, compute, video, utility]
+
+  # ============================================================
+  # PLAYER 2 — all ports shifted +1000
+  # Moonlight: add server as  <host-ip>:48984    (port 48984)
+  #
+  # WOLF_HTTPS/HTTP_PORT tells Wolf to bind and advertise the
+  # shifted ports, so Moonlight learns the right host ports via
+  # RTSP session negotiation.
+  #
+  # If streaming still breaks, your Wolf build may also expose
+  # WOLF_RTSP_PORT / WOLF_VIDEO_PORT / WOLF_AUDIO_PORT /
+  # WOLF_CONTROL_PORT — add them mirroring the same +1000 shift.
+  # ============================================================
+  # ============================================================
+  # DOTA 2 UPDATER — never starts automatically
+  # Run with:  docker compose run --rm dota2-update
+  # Do this with both players out of the game.
+  # ============================================================
+  dota2-update:
+    image: ghcr.io/games-on-whales/steam:edge
+    container_name: dota2-update
+    profiles: [update]
+    restart: "no"
+    command: steam +app_update 570 validate +quit
+    volumes:
+      - /opt/gow/shared/steamapps:/home/retro/.steam/steam/steamapps
+
+  # ============================================================
+  # PLAYER 2 — all ports shifted +1000
+  # Moonlight: add server as  <host-ip>:48984    (port 48984)
+  #
+  # WOLF_HTTPS/HTTP_PORT tells Wolf to bind and advertise the
+  # shifted ports, so Moonlight learns the right host ports via
+  # RTSP session negotiation.
+  #
+  # If streaming still breaks, your Wolf build may also expose
+  # WOLF_RTSP_PORT / WOLF_VIDEO_PORT / WOLF_AUDIO_PORT /
+  # WOLF_CONTROL_PORT — add them mirroring the same +1000 shift.
+  # ============================================================
+  wolf-player2:
+    image: ghcr.io/games-on-whales/wolf:stable
+    container_name: wolf-player2
+    restart: unless-stopped
+    environment:
+      - XDG_RUNTIME_DIR=/tmp/wolf
+      - WOLF_HTTPS_PORT=48984
+      - WOLF_HTTP_PORT=48989
+      - TZ=Etc/UTC
+    ports:
+      - "48984:48984/tcp"   # HTTPS pairing  (+1000)
+      - "48989:48989/tcp"   # HTTP pairing   (+1000)
+      - "49010:49010/tcp"   # RTSP           (+1000)
+      - "48999:48999/udp"   # control        (+1000)
+      - "49100:49100/udp"   # video          (+1000)
+      - "49200:49200/udp"   # audio          (+1000)
+    volumes:
+      - ./configs/player2:/etc/wolf/cfg:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /run/udev:/run/udev:ro
+    devices:
+      - /dev/uinput
+      - /dev/dri
+    device_cgroup_rules:
+      - 'c 13:* rmw'
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu, compute, video, utility]

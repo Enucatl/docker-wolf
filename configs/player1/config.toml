@@ -1,0 +1,20 @@
+# Wolf config — player 1
+# Place this file at /opt/gow/configs/player1/config.toml on the host.
+
+[[apps]]
+title = "Dota 2"
+
+  [apps.runner]
+  type    = "docker"
+  name    = "dota2-player1"
+  image   = "ghcr.io/games-on-whales/steam:edge"
+  mounts  = [
+    # Player-specific state: Steam account, settings, userdata
+    "/opt/gow/users/player1:/home/retro",
+    # Shared game installation — read-only prevents concurrent update corruption
+    "/opt/gow/shared/steamapps:/home/retro/.steam/steam/steamapps:ro",
+    # Per-player cfg shadows the shared game dir so autoexec.cfg etc. don't clash
+    "/opt/gow/users/player1/dota-cfg:/home/retro/.steam/steam/steamapps/common/dota 2 beta/game/dota/cfg",
+  ]
+  devices = ["/dev/uinput"]
+  env     = []
