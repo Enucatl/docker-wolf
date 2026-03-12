@@ -8,6 +8,10 @@ services:
     image: ghcr.io/games-on-whales/wolf:stable
     container_name: wolf-player1
     restart: unless-stopped
+    # Wolf needs to spawn Docker containers (PulseAudio, games) via the host
+    # socket, which requires actual host root. userns_mode: host opts this
+    # container out of the daemon-wide userns-remap for that reason.
+    userns_mode: "host"
     environment:
       - XDG_RUNTIME_DIR=/tmp/wolf
       - WOLF_HTTPS_PORT=47984
@@ -26,6 +30,8 @@ services:
       - ./configs/player1:/etc/wolf/cfg
       - /var/run/docker.sock:/var/run/docker.sock
       - /run/udev:/run/udev:ro
+      - type: tmpfs
+        target: /tmp/wolf   # XDG_RUNTIME_DIR must exist before Wolf binds its API socket
     devices:
       - /dev/uinput
       - /dev/dri
@@ -56,6 +62,7 @@ services:
     image: ghcr.io/games-on-whales/wolf:stable
     container_name: wolf-player2
     restart: unless-stopped
+    userns_mode: "host"
     environment:
       - XDG_RUNTIME_DIR=/tmp/wolf
       - WOLF_HTTPS_PORT=48984
@@ -72,6 +79,8 @@ services:
       - ./configs/player2:/etc/wolf/cfg
       - /var/run/docker.sock:/var/run/docker.sock
       - /run/udev:/run/udev:ro
+      - type: tmpfs
+        target: /tmp/wolf
     devices:
       - /dev/uinput
       - /dev/dri
