@@ -85,6 +85,8 @@ fi
 # ─── directories ─────────────────────────────────────────────────────────────
 section "Directories"
 DIRS=(
+  # Wolf config and app state — bind-mounted as /etc/wolf inside the container
+  /etc/wolf
   # Wolf runtime dir — bind-mounted as XDG_RUNTIME_DIR so Wolf can resolve
   # the host path when passing socket mounts to child containers (PulseAudio, games)
   /var/lib/wolf
