@@ -52,6 +52,23 @@ else
   fi
 fi
 
+# ─── nvidia docker runtime ───────────────────────────────────────────────────
+section "NVIDIA Docker Runtime"
+if docker info 2>/dev/null | grep -q '"nvidia"'; then
+  ok "nvidia runtime registered in Docker"
+else
+  if command -v nvidia-ctk &>/dev/null; then
+    info "Registering nvidia runtime with Docker..."
+    nvidia-ctk runtime configure --runtime=docker
+    systemctl restart docker
+    ok "nvidia runtime configured and Docker restarted"
+  else
+    fail "nvidia-ctk not found — cannot register nvidia Docker runtime.
+    Install nvidia-container-toolkit:
+    https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html"
+  fi
+fi
+
 # ─── /dev/dri ────────────────────────────────────────────────────────────────
 section "DRI Render Node"
 if [[ ! -d /dev/dri ]]; then
@@ -95,6 +112,17 @@ for dir in "${DIRS[@]}"; do
   mkdir -p "$dir"
   ok "Ensured $dir"
 done
+
+# /var/lib/wolf must be root-owned so Wolf (running as root in the container)
+# can use it as XDG_RUNTIME_DIR without PulseAudio permission errors.
+if [[ "$(stat -c '%u' /var/lib/wolf)" != "0" ]]; then
+  info "Fixing ownership of /var/lib/wolf to root..."
+  chown root:root /var/lib/wolf
+  chmod 700 /var/lib/wolf
+  ok "Fixed ownership of /var/lib/wolf"
+else
+  ok "/var/lib/wolf is root-owned"
+fi
 
 # ─── done ────────────────────────────────────────────────────────────────────
 echo -e "\n${GREEN}All prerequisites satisfied. You can now run:${NC}"
