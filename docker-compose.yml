@@ -12,7 +12,7 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:rw
       - /dev/:/dev/:rw
       - /run/udev:/run/udev:rw
-      - /var/lib/wolf:/tmp/sockets  # XDG_RUNTIME_DIR bind-mount so Wolf can resolve host socket path for child containers
+      - /var/lib/wolf:/tmp/sockets
     devices:
       - /dev/dri
       - /dev/uinput
@@ -32,3 +32,9 @@ services:
       - "48010:48010/tcp"   # RTSP
       - "48100:48100/udp"   # Video
       - "48200:48200/udp"   # Audio
+
+networks:
+  default:
+    driver: bridge
+    driver_opts:
+      com.docker.network.driver.mtu: 1280
